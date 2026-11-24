@@ -46,7 +46,7 @@ jobs:
       MY_QUAL_CODES: "3001,3206"
       QUAL_CODES_VERIFIED: "true"    # 3001 ve 3206 ÖSYM nitelik tablolarıyla doğrulandı (mezuniyet alanınızın AİS kaydını ayrıca kontrol edin)
       AREA_CODE_VERIFIED: "false"    # ais.osym.gov.tr'den mezuniyet alanınızı doğrulayınca "true" yapın (kod uyuşmazlığı o zaman "engel" sayılır)
-      GENDER: ""                     # askeri/polis ilanları için "erkek" veya "kadin" yazın (boşsa bu ilanlar "kontrol edin" olarak işaretlenir)
+      GENDER: "erkek"                     # askeri/polis ilanları için "erkek" veya "kadin" yazın (boşsa bu ilanlar "kontrol edin" olarak işaretlenir)
       NOTIFY_MIN_SCORE: "60"
       CHECK_EVERY_HOURS: "6"
       ENABLE_ILAN_GOV: "true"        # ilan.gov.tr (deneysel, doğrulanmadı); sorun çıkarırsa "false" yapın
