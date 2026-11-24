@@ -46,10 +46,10 @@ jobs:
       MY_QUAL_CODES: "3001,3206"
       QUAL_CODES_VERIFIED: "true"    # 3001 ve 3206 ÖSYM nitelik tablolarıyla doğrulandı (mezuniyet alanınızın AİS kaydını ayrıca kontrol edin)
       AREA_CODE_VERIFIED: "false"    # ais.osym.gov.tr'den mezuniyet alanınızı doğrulayınca "true" yapın (kod uyuşmazlığı o zaman "engel" sayılır)
-      GENDER: "erkek"                     # askeri/polis ilanları için "erkek" veya "kadin" yazın (boşsa bu ilanlar "kontrol edin" olarak işaretlenir)
+      GENDER: ""                     # askeri/polis ilanları için "erkek" veya "kadin" yazın (boşsa bu ilanlar "kontrol edin" olarak işaretlenir)
       NOTIFY_MIN_SCORE: "60"
       CHECK_EVERY_HOURS: "6"
-      ENABLE_ILAN_GOV: "true"        # ilan.gov.tr (deneysel, doğrulanmadı); sorun çıkarırsa "false" yapın
+      ENABLE_ILAN_GOV: "false"       # belgelenmemiş API / robots erişim sorunları sebebiyle kapalı
       DB_PATH: ${{ github.workspace }}/state/jobs.db
     steps:
       - uses: actions/checkout@v4
@@ -74,6 +74,17 @@ jobs:
           unzip -q ai_job_hunter.zip
           if [ -f sources.json ]; then cp sources.json ai_job_hunter/sources.json; fi
           pip install -q -r ai_job_hunter/requirements.txt
+
+      - name: Chromium tarayıcı önbelleği
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-chromium-linux-v1-${{ hashFiles('ai_job_hunter.zip') }}
+
+      - name: Dinamik duyuru sayfaları için Playwright hazırla
+        run: |
+          pip install -q 'playwright>=1.52,<2'
+          python -m playwright install chromium
 
       - name: Çalıştır
         working-directory: ai_job_hunter
