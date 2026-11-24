@@ -1,0 +1,90 @@
+name: Ilan Botu
+
+on:
+  schedule:
+    - cron: "*/30 * * * *"     # 30 dakikada bir (komutları yanıtlar; tarama 6 saatte bir yapılır)
+  workflow_dispatch:
+    inputs:
+      probe_url:
+        description: "İsteğe bağlı: kontrol edilecek site adresi (sonuç Telegram'a gelir)"
+        required: false
+        default: ""
+      check_sources:
+        description: "Açık kaynakları test et (sonuç Telegram'a gelir)"
+        type: boolean
+        default: false
+      guide_files:
+        description: "Depodaki kilavuz/ klasöründeki ÖSYM PDF'lerini işle (sonuç Telegram'a gelir)"
+        type: boolean
+        default: false
+
+concurrency:
+  group: ilan-botu
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      TZ: Europe/Istanbul
+      GH_TOKEN: ${{ github.token }}
+      TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+      TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+      ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+      PROBE_URL: ${{ inputs.probe_url }}
+      CHECK_SOURCES: ${{ inputs.check_sources }}
+      GUIDE_FILES: ${{ inputs.guide_files }}
+      GUIDE_DIR: ${{ github.workspace }}/kilavuz
+      # --- Profil ve davranış (gizli değildir; gerekirse düzenleyin) ---
+      KPSS_SCORE: "77.09"
+      KPSS_SCORE_TYPE: "P93"
+      AGE: "21"
+      MY_QUAL_CODES: "3001,3206"
+      QUAL_CODES_VERIFIED: "true"    # 3001 ve 3206 ÖSYM nitelik tablolarıyla doğrulandı (mezuniyet alanınızın AİS kaydını ayrıca kontrol edin)
+      AREA_CODE_VERIFIED: "false"    # ais.osym.gov.tr'den mezuniyet alanınızı doğrulayınca "true" yapın (kod uyuşmazlığı o zaman "engel" sayılır)
+      GENDER: ""                     # askeri/polis ilanları için "erkek" veya "kadin" yazın (boşsa bu ilanlar "kontrol edin" olarak işaretlenir)
+      NOTIFY_MIN_SCORE: "60"
+      CHECK_EVERY_HOURS: "6"
+      ENABLE_ILAN_GOV: "true"        # ilan.gov.tr (deneysel, doğrulanmadı); sorun çıkarırsa "false" yapın
+      DB_PATH: ${{ github.workspace }}/state/jobs.db
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Kayıtlı durumu (veritabanı) getir
+        run: |
+          git config --global user.name "ilan-botu"
+          git config --global user.email "ilan-botu@users.noreply.github.com"
+          REMOTE="https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git"
+          if git ls-remote --exit-code --heads "$REMOTE" state >/dev/null 2>&1; then
+            git clone -q --depth 1 --branch state "$REMOTE" state
+          else
+            mkdir state && git -C state init -q -b state && git -C state remote add origin "$REMOTE"
+          fi
+
+      - name: Kodu aç ve kur
+        run: |
+          unzip -q ai_job_hunter.zip
+          if [ -f sources.json ]; then cp sources.json ai_job_hunter/sources.json; fi
+          pip install -q -r ai_job_hunter/requirements.txt
+
+      - name: Çalıştır
+        working-directory: ai_job_hunter
+        run: python action_run.py
+
+      - name: Durumu kaydet
+        if: always()
+        run: |
+          cd state
+          if [ -f jobs.db ]; then
+            git add jobs.db
+            if git rev-parse HEAD >/dev/null 2>&1; then git commit -q --amend -m state --allow-empty; else git commit -q -m state; fi
+            git push -q --force origin state
+          fi
